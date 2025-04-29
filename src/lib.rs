@@ -34,22 +34,25 @@ impl<T> Default for Interner<T> {
 }
 
 impl<T> Interner<T> {
+    #[must_use]
     pub const fn new() -> Self {
         Self { storage: RwLock::new(HashTable::new()), arena: OnceLock::new() }
     }
 }
 
 impl<T: Hash + Eq> Interner<T> {
-    pub fn try_resolve<Q>(&self, value: Q) -> Option<&T>
+    #[must_use]
+    pub fn try_resolve<Q>(&self, value: &Q) -> Option<&T>
     where
         T: Borrow<Q>,
-        Q: Hash + Eq,
+        Q: ?Sized + Hash + Eq,
     {
-        let hash = FxBuildHasher.hash_one(&value);
+        let hash = FxBuildHasher.hash_one(value);
 
-        self.storage.read().find(hash, |cached| T::borrow(cached) == &value).copied()
+        self.storage.read().find(hash, |cached| T::borrow(cached) == value).copied()
     }
 
+    #[expect(clippy::missing_panics_doc)]
     pub fn intern(&self, value: T) -> &T {
         let hash = FxBuildHasher.hash_one(&value);
 
@@ -79,7 +82,7 @@ mod tests {
         let b1: *const _ = INTERNER.intern(1);
         INTERNER.intern(2);
 
-        assert!(INTERNER.try_resolve(1) == Some(&1));
+        assert!(INTERNER.try_resolve(&1) == Some(&1));
 
         assert_eq!(a1.addr(), b1.addr());
     }

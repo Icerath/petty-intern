@@ -3,6 +3,9 @@ name = "petty-intern"
 version = "0.1.0"
 edition = "2024"
 
+[lints.clippy]
+pedantic = "warn"
+
 [dependencies]
 hashbrown = "0.15.2"
 parking_lot = "0.12.3"
