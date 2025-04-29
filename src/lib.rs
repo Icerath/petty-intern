@@ -13,14 +13,14 @@ use rustc_hash::FxBuildHasher;
 use typed_arena::Arena;
 
 pub struct Interner<T: 'static> {
-    storage: RwLock<HashTable<&'static T>>,
+    set: RwLock<HashTable<&'static T>>,
     arena: OnceLock<Mutex<Arena<T>>>,
 }
 
 impl<T: fmt::Debug> fmt::Debug for Interner<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut debug_map = f.debug_set();
-        let Some(inner) = self.storage.try_read() else {
+        let Some(inner) = self.set.try_read() else {
             return debug_map.finish_non_exhaustive();
         };
         debug_map.entries(&*inner).finish()
@@ -36,7 +36,7 @@ impl<T> Default for Interner<T> {
 impl<T> Interner<T> {
     #[must_use]
     pub const fn new() -> Self {
-        Self { storage: RwLock::new(HashTable::new()), arena: OnceLock::new() }
+        Self { set: RwLock::new(HashTable::new()), arena: OnceLock::new() }
     }
 }
 
@@ -49,15 +49,15 @@ impl<T: Hash + Eq> Interner<T> {
     {
         let hash = FxBuildHasher.hash_one(value);
 
-        self.storage.read().find(hash, |cached| T::borrow(cached) == value).copied()
+        self.set.read().find(hash, |cached| T::borrow(cached) == value).copied()
     }
 
     #[expect(clippy::missing_panics_doc)]
     pub fn intern(&self, value: T) -> &T {
         let hash = FxBuildHasher.hash_one(&value);
 
-        let storage = self.storage.upgradable_read();
-        if let Some(cached) = storage.find(hash, |cached| *cached == &value) {
+        let set = self.set.upgradable_read();
+        if let Some(cached) = set.find(hash, |cached| *cached == &value) {
             return cached;
         }
 
@@ -65,8 +65,8 @@ impl<T: Hash + Eq> Interner<T> {
         let cached = arena.alloc(value);
         let cached: &'static mut T = unsafe { std::mem::transmute(cached) };
         drop(arena);
-        let mut storage = RwLockUpgradableReadGuard::upgrade(storage);
-        storage.insert_unique(hash, cached, |t| FxBuildHasher.hash_one(t));
+        let mut set = RwLockUpgradableReadGuard::upgrade(set);
+        set.insert_unique(hash, cached, |t| FxBuildHasher.hash_one(t));
         cached
     }
 }
