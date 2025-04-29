@@ -4,13 +4,15 @@ use std::{
     sync::{Mutex, OnceLock},
 };
 
+use hashbrown::HashTable;
 use parking_lot::{RwLock, RwLockUpgradableReadGuard};
+use std::hash::BuildHasher;
 
-use rustc_hash::{FxBuildHasher, FxHashSet};
+use rustc_hash::FxBuildHasher;
 use typed_arena::Arena;
 
 pub struct Interner<T: 'static> {
-    storage: RwLock<FxHashSet<&'static T>>,
+    storage: RwLock<HashTable<&'static T>>,
     arena: OnceLock<Mutex<Arena<T>>>,
 }
 
@@ -33,7 +35,7 @@ impl<T> Default for Interner<T> {
 impl<T> Interner<T> {
     pub const fn new() -> Self {
         Self {
-            storage: RwLock::new(FxHashSet::with_hasher(FxBuildHasher)),
+            storage: RwLock::new(HashTable::new()),
             arena: OnceLock::new(),
         }
     }
@@ -41,17 +43,19 @@ impl<T> Interner<T> {
 
 impl<T: Hash + Eq> Interner<T> {
     pub fn intern(&self, value: T) -> &T {
-        if let Some(cached) = self.storage.read().get(&value) {
+        let hash = FxBuildHasher.hash_one(&value);
+
+        let storage = self.storage.upgradable_read();
+        if let Some(cached) = { storage.find(hash, |cached| *cached == &value).copied() } {
             return cached;
         }
-        let storage = self.storage.upgradable_read();
 
         let arena = self.arena.get_or_init(Mutex::default).lock().unwrap();
         let cached = arena.alloc(value);
         let cached: &'static mut T = unsafe { std::mem::transmute(cached) };
         drop(arena);
         let mut storage = RwLockUpgradableReadGuard::upgrade(storage);
-        storage.insert(cached);
+        storage.insert_unique(hash, cached, |t| FxBuildHasher.hash_one(t));
         cached
     }
 }

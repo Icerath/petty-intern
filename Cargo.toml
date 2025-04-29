@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+hashbrown = "0.15.2"
 parking_lot = "0.12.3"
 rustc-hash = "2.1.1"
 typed-arena = "2.0.2"
