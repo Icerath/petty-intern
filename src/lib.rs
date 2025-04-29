@@ -2,6 +2,7 @@ use std::{
     borrow::Borrow,
     fmt,
     hash::Hash,
+    ptr::NonNull,
     sync::{Mutex, OnceLock},
 };
 
@@ -12,8 +13,8 @@ use std::hash::BuildHasher;
 use rustc_hash::FxBuildHasher;
 use typed_arena::Arena;
 
-pub struct Interner<T: 'static> {
-    set: RwLock<HashTable<&'static T>>,
+pub struct Interner<T> {
+    set: RwLock<HashTable<NonNull<T>>>,
     arena: OnceLock<Mutex<Arena<T>>>,
 }
 
@@ -49,7 +50,12 @@ impl<T: Hash + Eq> Interner<T> {
     {
         let hash = FxBuildHasher.hash_one(value);
 
-        self.set.read().find(hash, |cached| T::borrow(cached) == value).copied()
+        unsafe {
+            self.set
+                .read()
+                .find(hash, |cached| T::borrow(cached.as_ref()) == value)
+                .map(|ptr| ptr.as_ref())
+        }
     }
 
     #[expect(clippy::missing_panics_doc)]
@@ -57,19 +63,24 @@ impl<T: Hash + Eq> Interner<T> {
         let hash = FxBuildHasher.hash_one(&value);
 
         let set = self.set.upgradable_read();
-        if let Some(cached) = set.find(hash, |cached| *cached == &value) {
-            return cached;
+        unsafe {
+            if let Some(cached) = set.find(hash, |cached| cached.as_ref() == &value) {
+                return cached.as_ref();
+            }
         }
 
         let arena = self.arena.get_or_init(Mutex::default).lock().unwrap();
-        let cached = arena.alloc(value);
-        let cached: &'static mut T = unsafe { std::mem::transmute(cached) };
+        let cached = NonNull::from(arena.alloc(value));
         drop(arena);
         let mut set = RwLockUpgradableReadGuard::upgrade(set);
         set.insert_unique(hash, cached, |t| FxBuildHasher.hash_one(t));
-        cached
+        unsafe { cached.as_ref() }
     }
 }
+
+// FIXME: is might be overly restrictive?
+unsafe impl<T: Send + Sync> Send for Interner<T> {}
+unsafe impl<T: Send + Sync> Sync for Interner<T> {}
 
 #[cfg(test)]
 mod tests {
