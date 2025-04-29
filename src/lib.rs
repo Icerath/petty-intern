@@ -78,7 +78,7 @@ impl<T: Hash + Eq> Interner<T> {
     }
 }
 
-// FIXME: is might be overly restrictive?
+// FIXME: this might be overly restrictive?
 unsafe impl<T: Send + Sync> Send for Interner<T> {}
 unsafe impl<T: Send + Sync> Sync for Interner<T> {}
 
