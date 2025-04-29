@@ -35,10 +35,7 @@ impl<T> Default for Interner<T> {
 
 impl<T> Interner<T> {
     pub const fn new() -> Self {
-        Self {
-            storage: RwLock::new(HashTable::new()),
-            arena: OnceLock::new(),
-        }
+        Self { storage: RwLock::new(HashTable::new()), arena: OnceLock::new() }
     }
 }
 
@@ -50,10 +47,7 @@ impl<T: Hash + Eq> Interner<T> {
     {
         let hash = FxBuildHasher.hash_one(&value);
 
-        self.storage
-            .read()
-            .find(hash, |cached| T::borrow(cached) == &value)
-            .copied()
+        self.storage.read().find(hash, |cached| T::borrow(cached) == &value).copied()
     }
 
     pub fn intern(&self, value: T) -> &T {
