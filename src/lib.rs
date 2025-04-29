@@ -1,4 +1,5 @@
 use std::{
+    borrow::Borrow,
     fmt,
     hash::Hash,
     sync::{Mutex, OnceLock},
@@ -42,11 +43,24 @@ impl<T> Interner<T> {
 }
 
 impl<T: Hash + Eq> Interner<T> {
+    pub fn try_resolve<Q>(&self, value: Q) -> Option<&T>
+    where
+        T: Borrow<Q>,
+        Q: Hash + Eq,
+    {
+        let hash = FxBuildHasher.hash_one(&value);
+
+        self.storage
+            .read()
+            .find(hash, |cached| T::borrow(cached) == &value)
+            .copied()
+    }
+
     pub fn intern(&self, value: T) -> &T {
         let hash = FxBuildHasher.hash_one(&value);
 
         let storage = self.storage.upgradable_read();
-        if let Some(cached) = { storage.find(hash, |cached| *cached == &value).copied() } {
+        if let Some(cached) = storage.find(hash, |cached| *cached == &value) {
             return cached;
         }
 
@@ -70,6 +84,8 @@ mod tests {
         let a1: *const _ = INTERNER.intern(1);
         let b1: *const _ = INTERNER.intern(1);
         INTERNER.intern(2);
+
+        assert!(INTERNER.try_resolve(1) == Some(&1));
 
         assert_eq!(a1.addr(), b1.addr());
     }
