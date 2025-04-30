@@ -2,20 +2,22 @@ use std::{
     borrow::Borrow,
     fmt,
     hash::Hash,
+    marker::PhantomData,
     ptr::NonNull,
     sync::{Mutex, OnceLock},
 };
 
+use bumpalo::Bump;
 use hashbrown::HashTable;
 use parking_lot::{RwLock, RwLockUpgradableReadGuard};
 use std::hash::BuildHasher;
 
 use rustc_hash::FxBuildHasher;
-use typed_arena::Arena;
 
 pub struct Interner<T> {
-    set: RwLock<HashTable<NonNull<T>>>,
-    arena: OnceLock<Mutex<Arena<T>>>,
+    set: RwLock<HashTable<NonNull<u8>>>,
+    arena: OnceLock<Mutex<Bump>>,
+    __marker: PhantomData<T>,
 }
 
 impl<T: fmt::Debug> fmt::Debug for Interner<T> {
@@ -37,7 +39,7 @@ impl<T> Default for Interner<T> {
 impl<T> Interner<T> {
     #[must_use]
     pub const fn new() -> Self {
-        Self { set: RwLock::new(HashTable::new()), arena: OnceLock::new() }
+        Self { set: RwLock::new(HashTable::new()), arena: OnceLock::new(), __marker: PhantomData }
     }
 }
 
@@ -53,8 +55,8 @@ impl<T: Hash + Eq> Interner<T> {
         unsafe {
             self.set
                 .read()
-                .find(hash, |cached| T::borrow(cached.as_ref()) == value)
-                .map(|ptr| ptr.as_ref())
+                .find(hash, |cached| T::borrow(cached.cast().as_ref()) == value)
+                .map(|ptr| ptr.cast().as_ref())
         }
     }
 
@@ -64,17 +66,17 @@ impl<T: Hash + Eq> Interner<T> {
 
         let set = self.set.upgradable_read();
         unsafe {
-            if let Some(cached) = set.find(hash, |cached| cached.as_ref() == &value) {
-                return cached.as_ref();
+            if let Some(cached) = set.find(hash, |cached| cached.cast::<T>().as_ref() == &value) {
+                return cached.cast().as_ref();
             }
         }
 
         let arena = self.arena.get_or_init(Mutex::default).lock().unwrap();
-        let cached = NonNull::from(arena.alloc(value));
+        let cached = NonNull::from(arena.alloc(value)).cast();
         drop(arena);
         let mut set = RwLockUpgradableReadGuard::upgrade(set);
         set.insert_unique(hash, cached, |t| FxBuildHasher.hash_one(t));
-        unsafe { cached.as_ref() }
+        unsafe { cached.cast().as_ref() }
     }
 }
 
@@ -96,5 +98,18 @@ mod tests {
         assert!(INTERNER.try_resolve(&1) == Some(&1));
 
         assert_eq!(a1.addr(), b1.addr());
+    }
+    #[test]
+    fn recursive() {
+        #[derive(Debug, PartialEq, Eq, Hash)]
+        enum Type<'tcx> {
+            Int,
+            Array(&'tcx Type<'tcx>),
+        }
+
+        let interner = Interner::new();
+        let int = interner.intern(Type::Int);
+        let array = interner.intern(Type::Array(int));
+        println!("{array:?}");
     }
 }
