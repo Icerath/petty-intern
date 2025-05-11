@@ -14,8 +14,8 @@ use {
 
 pub struct Interner<T> {
     __marker: PhantomData<T>,
-    pub(crate) set: UnsafeCell<HashTable<NonNull<u8>>>,
-    pub(crate) arena: OnceCell<Bump>,
+    set: UnsafeCell<HashTable<NonNull<u8>>>,
+    arena: OnceCell<Bump>,
 }
 
 impl<T> Default for Interner<T> {
