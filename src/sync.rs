@@ -63,6 +63,8 @@ impl<T: Hash + Eq> Interner<T> {
         drop(inner);
         let inner = self.inner.write().unwrap();
 
+        // try again in case another thread inserted a value in between the drop(_) and the .writer().
+        // It would be nice to avoid the last 2 lookups if we could 'upgrade' the read guard and ask if there were any writes in between.
         if let Some(cached) = inner.try_resolve_with(&value, hash) {
             return unsafe { longer(cached) };
         }

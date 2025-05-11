@@ -13,7 +13,10 @@ use {
 };
 
 pub struct Interner<T> {
+    // an interner must be covariant in `T`
     __marker: PhantomData<T>,
+    // UnsafeCell for interior mutability, the NonNull<u8> is a reference into the arena.
+    // It uses u8 instead of T to avoid making T invariant
     set: UnsafeCell<HashTable<NonNull<u8>>>,
     arena: OnceCell<Bump>,
 }
@@ -47,11 +50,13 @@ impl<T> Interner<T> {
     }
 
     fn set(&self) -> &HashTable<NonNull<u8>> {
+        // Safety: mutable access is entirely contained without the Interners methods.
         unsafe { self.set.get().as_ref().unwrap() }
     }
 
     #[expect(clippy::mut_from_ref)]
     fn set_mut(&self) -> &mut HashTable<NonNull<u8>> {
+        // Safety: mutable access is entirely contained without the Interners methods.
         unsafe { self.set.get().as_mut().unwrap() }
     }
 }
