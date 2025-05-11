@@ -34,6 +34,14 @@ impl<T> Interner<T> {
         }
     }
 
+    pub fn len(&self) -> usize {
+        self.set().len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     fn set(&self) -> &HashTable<NonNull<u8>> {
         unsafe { self.set.get().as_ref().unwrap() }
     }
@@ -80,6 +88,12 @@ impl<T: Hash + Eq> Interner<T> {
             return cached;
         }
 
+        self.insert(hash, value)
+    }
+
+    // Inserts the value into the interner checking if the value already exists
+    pub fn intern_new(&self, value: T) -> &T {
+        let hash = FxBuildHasher.hash_one(&value);
         self.insert(hash, value)
     }
 }

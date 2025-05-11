@@ -23,6 +23,15 @@ impl<T> Interner<T> {
     pub const fn new() -> Self {
         Self { inner: RwLock::new(crate::Interner::new()) }
     }
+
+    #[expect(clippy::missing_panics_doc)]
+    pub fn len(&self) -> usize {
+        self.inner.read().unwrap().len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
 
 impl<T: Hash + Eq> Interner<T> {
@@ -52,6 +61,14 @@ impl<T: Hash + Eq> Interner<T> {
             return unsafe { longer(cached) };
         }
 
+        unsafe { longer(inner.insert(hash, value)) }
+    }
+
+    #[expect(clippy::missing_panics_doc, clippy::readonly_write_lock)]
+    // Inserts the value into the interner checking if the value already exists
+    pub fn intern_new(&self, value: T) -> &T {
+        let hash = FxBuildHasher.hash_one(&value);
+        let inner = self.inner.write().unwrap();
         unsafe { longer(inner.insert(hash, value)) }
     }
 }
