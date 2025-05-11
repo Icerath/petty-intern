@@ -58,7 +58,7 @@ impl<T: Hash + Eq> Interner<T> {
     pub(crate) fn try_resolve_with<Q>(&self, value: &Q, hash: u64) -> Option<&T>
     where
         T: Borrow<Q>,
-        Q: ?Sized + Hash + Eq,
+        Q: ?Sized + Eq,
     {
         self.set()
             .find(hash, |cached| T::borrow(unsafe { cached.cast().as_ref() }) == value)
@@ -72,6 +72,9 @@ impl<T: Hash + Eq> Interner<T> {
             return cached;
         }
 
+        self.insert(hash, value)
+    }
+    pub(crate) fn insert(&self, hash: u64, value: T) -> &T {
         let arena = self.arena.get_or_init(Arena::new);
 
         let cached = NonNull::from(arena.alloc(value)).cast();

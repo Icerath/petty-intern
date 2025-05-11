@@ -1,16 +1,12 @@
 use {
-    bumpalo::Bump,
     rustc_hash::FxBuildHasher,
     std::{
         borrow::Borrow,
         fmt,
         hash::{BuildHasher, Hash},
-        ptr::NonNull,
         sync::RwLock,
     },
 };
-
-type Arena = Bump;
 
 pub struct Interner<T> {
     inner: RwLock<crate::Interner<T>>,
@@ -49,7 +45,7 @@ impl<T: Hash + Eq> Interner<T> {
         self.inner.read().unwrap().try_resolve(value).map(|cached| unsafe { longer(cached) })
     }
 
-    #[expect(clippy::missing_panics_doc)]
+    #[expect(clippy::missing_panics_doc, clippy::readonly_write_lock)]
     pub fn intern(&self, value: T) -> &T {
         let hash = FxBuildHasher.hash_one(&value);
 
@@ -59,17 +55,13 @@ impl<T: Hash + Eq> Interner<T> {
         }
 
         drop(inner);
-        let mut inner = self.inner.write().unwrap();
+        let inner = self.inner.write().unwrap();
 
         if let Some(cached) = inner.try_resolve_with(&value, hash) {
             return unsafe { longer(cached) };
         }
 
-        let arena = inner.arena.get_or_init(Arena::default);
-
-        let cached = NonNull::from(arena.alloc(value)).cast();
-        inner.set.get_mut().insert_unique(hash, cached, |t| FxBuildHasher.hash_one(t));
-        unsafe { cached.cast().as_ref() }
+        unsafe { longer(inner.insert(hash, value)) }
     }
 }
 
