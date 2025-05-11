@@ -12,12 +12,10 @@ use {
     },
 };
 
-type Arena = Bump;
-
 pub struct Interner<T> {
     __marker: PhantomData<T>,
     pub(crate) set: UnsafeCell<HashTable<NonNull<u8>>>,
-    pub(crate) arena: OnceCell<Arena>,
+    pub(crate) arena: OnceCell<Bump>,
 }
 
 impl<T> Default for Interner<T> {
@@ -75,7 +73,7 @@ impl<T: Hash + Eq> Interner<T> {
         self.insert(hash, value)
     }
     pub(crate) fn insert(&self, hash: u64, value: T) -> &T {
-        let arena = self.arena.get_or_init(Arena::new);
+        let arena = self.arena.get_or_init(Bump::new);
 
         let cached = NonNull::from(arena.alloc(value)).cast();
         self.set_mut().insert_unique(hash, cached, |t| FxBuildHasher.hash_one(t));

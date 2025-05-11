@@ -12,15 +12,6 @@ pub struct Interner<T> {
     inner: RwLock<crate::Interner<T>>,
 }
 
-impl<T: fmt::Debug> fmt::Debug for Interner<T> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let Ok(inner) = self.inner.try_read() else {
-            return f.debug_set().finish_non_exhaustive();
-        };
-        inner.fmt(f)
-    }
-}
-
 impl<T> Default for Interner<T> {
     fn default() -> Self {
         Self::new()
@@ -62,6 +53,15 @@ impl<T: Hash + Eq> Interner<T> {
         }
 
         unsafe { longer(inner.insert(hash, value)) }
+    }
+}
+
+impl<T: fmt::Debug> fmt::Debug for Interner<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let Ok(inner) = self.inner.try_read() else {
+            return f.debug_set().finish_non_exhaustive();
+        };
+        inner.fmt(f)
     }
 }
 
