@@ -5,7 +5,7 @@ edition = "2024"
 
 description = "A simple interning library"
 keywords = ["interner", "interning", "caching", "hash"]
-license = "MIT or Apachi"
+license = "MIT or Apache"
 repository = "https://github.com/Icerath/petty-intern"
 
 [features]
