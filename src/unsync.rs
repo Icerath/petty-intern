@@ -88,3 +88,5 @@ impl<T: fmt::Debug> fmt::Debug for Interner<T> {
         self.set().fmt(f)
     }
 }
+
+unsafe impl<T> Send for Interner<T> where T: Send {}

@@ -69,9 +69,8 @@ unsafe fn longer<'b, T>(short: &T) -> &'b T {
     unsafe { std::mem::transmute(short) }
 }
 
-// FIXME: this might be overly restrictive?
-unsafe impl<T: Send + Sync> Send for Interner<T> {}
-unsafe impl<T: Send + Sync> Sync for Interner<T> {}
+unsafe impl<T: Send> Send for Interner<T> {}
+unsafe impl<T: Sync> Sync for Interner<T> {}
 
 #[cfg(test)]
 mod tests {
