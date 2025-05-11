@@ -3,6 +3,11 @@ name = "petty-intern"
 version = "0.1.0"
 edition = "2024"
 
+description = "A simple interning library"
+keywords = ["interner", "interning", "caching", "hash"]
+license = "MIT or Apachi"
+repository = "https://github.com/Icerath/petty-intern"
+
 [features]
 sync = []
 
