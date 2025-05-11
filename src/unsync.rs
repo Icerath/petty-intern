@@ -66,7 +66,7 @@ impl<T: Hash + Eq> Interner<T> {
     pub fn intern(&self, value: T) -> &T {
         let hash = FxBuildHasher.hash_one(&value);
 
-        if let Some(cached) = self.try_resolve(&value) {
+        if let Some(cached) = self.try_resolve_with(&value, hash) {
             return cached;
         }
 
