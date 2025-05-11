@@ -33,9 +33,11 @@ impl<T> Interner<T> {
             arena: OnceCell::new(),
         }
     }
+
     pub(crate) fn set(&self) -> &HashTable<NonNull<u8>> {
         unsafe { self.set.get().as_ref().unwrap() }
     }
+
     #[expect(clippy::mut_from_ref)]
     pub(crate) fn set_mut(&self) -> &mut HashTable<NonNull<u8>> {
         unsafe { self.set.get().as_mut().unwrap() }
@@ -72,6 +74,7 @@ impl<T: Hash + Eq> Interner<T> {
 
         self.insert(hash, value)
     }
+
     pub(crate) fn insert(&self, hash: u64, value: T) -> &T {
         let arena = self.arena.get_or_init(Bump::new);
 
