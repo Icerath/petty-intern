@@ -34,27 +34,17 @@ impl<T> Interner<T> {
         }
     }
 
-    pub(crate) fn set(&self) -> &HashTable<NonNull<u8>> {
+    fn set(&self) -> &HashTable<NonNull<u8>> {
         unsafe { self.set.get().as_ref().unwrap() }
     }
 
     #[expect(clippy::mut_from_ref)]
-    pub(crate) fn set_mut(&self) -> &mut HashTable<NonNull<u8>> {
+    fn set_mut(&self) -> &mut HashTable<NonNull<u8>> {
         unsafe { self.set.get().as_mut().unwrap() }
     }
 }
 
 impl<T: Hash + Eq> Interner<T> {
-    #[must_use]
-    pub fn try_resolve<Q>(&self, value: &Q) -> Option<&T>
-    where
-        T: Borrow<Q>,
-        Q: ?Sized + Hash + Eq,
-    {
-        let hash = FxBuildHasher.hash_one(value);
-        self.try_resolve_with(value, hash)
-    }
-
     pub(crate) fn try_resolve_with<Q>(&self, value: &Q, hash: u64) -> Option<&T>
     where
         T: Borrow<Q>,
@@ -65,6 +55,24 @@ impl<T: Hash + Eq> Interner<T> {
             .map(|ptr| unsafe { ptr.cast().as_ref() })
     }
 
+    pub(crate) fn insert(&self, hash: u64, value: T) -> &T {
+        let arena = self.arena.get_or_init(Bump::new);
+
+        let cached = NonNull::from(arena.alloc(value)).cast();
+        self.set_mut().insert_unique(hash, cached, |t| FxBuildHasher.hash_one(t));
+        unsafe { cached.cast().as_ref() }
+    }
+
+    #[must_use]
+    pub fn try_resolve<Q>(&self, value: &Q) -> Option<&T>
+    where
+        T: Borrow<Q>,
+        Q: ?Sized + Hash + Eq,
+    {
+        let hash = FxBuildHasher.hash_one(value);
+        self.try_resolve_with(value, hash)
+    }
+
     pub fn intern(&self, value: T) -> &T {
         let hash = FxBuildHasher.hash_one(&value);
 
@@ -73,14 +81,6 @@ impl<T: Hash + Eq> Interner<T> {
         }
 
         self.insert(hash, value)
-    }
-
-    pub(crate) fn insert(&self, hash: u64, value: T) -> &T {
-        let arena = self.arena.get_or_init(Bump::new);
-
-        let cached = NonNull::from(arena.alloc(value)).cast();
-        self.set_mut().insert_unique(hash, cached, |t| FxBuildHasher.hash_one(t));
-        unsafe { cached.cast().as_ref() }
     }
 }
 
