@@ -25,6 +25,8 @@ impl<T> Default for Interner<T> {
 }
 
 impl<T> Interner<T> {
+    /// Creates an empty Interner.
+    /// The current implementation does not allocate
     #[must_use]
     pub const fn new() -> Self {
         Self {
@@ -34,10 +36,12 @@ impl<T> Interner<T> {
         }
     }
 
+    /// Returns the number of entries in the interner
     pub fn len(&self) -> usize {
         self.set().len()
     }
 
+    /// Returns `true` if the interner contains no elements
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
@@ -71,6 +75,7 @@ impl<T: Hash + Eq> Interner<T> {
         unsafe { cached.cast().as_ref() }
     }
 
+    /// Will return a reference to an equivalent value if it already exists
     #[must_use]
     pub fn try_resolve<Q>(&self, value: &Q) -> Option<&T>
     where
@@ -81,6 +86,7 @@ impl<T: Hash + Eq> Interner<T> {
         self.try_resolve_with(value, hash)
     }
 
+    /// Returns a reference to either the value provided, or an equivalent value that was already inserted
     pub fn intern(&self, value: T) -> &T {
         let hash = FxBuildHasher.hash_one(&value);
 
@@ -91,7 +97,7 @@ impl<T: Hash + Eq> Interner<T> {
         self.insert(hash, value)
     }
 
-    // Inserts the value into the interner checking if the value already exists
+    /// Inserts the value into the interner without checking if the value already exists
     pub fn intern_new(&self, value: T) -> &T {
         let hash = FxBuildHasher.hash_one(&value);
         self.insert(hash, value)

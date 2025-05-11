@@ -19,22 +19,27 @@ impl<T> Default for Interner<T> {
 }
 
 impl<T> Interner<T> {
+    /// Creates an empty Interner.
+    /// The current implementation does not allocate
     #[must_use]
     pub const fn new() -> Self {
         Self { inner: RwLock::new(crate::Interner::new()) }
     }
 
+    /// Returns the number of entries in the interner
     #[expect(clippy::missing_panics_doc)]
     pub fn len(&self) -> usize {
         self.inner.read().unwrap().len()
     }
 
+    /// Returns `true` if the interner contains no elements
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
 }
 
 impl<T: Hash + Eq> Interner<T> {
+    /// Will return a reference to an equivalent value if it already exists
     #[expect(clippy::missing_panics_doc)]
     #[must_use]
     pub fn try_resolve<Q>(&self, value: &Q) -> Option<&T>
@@ -45,6 +50,7 @@ impl<T: Hash + Eq> Interner<T> {
         self.inner.read().unwrap().try_resolve(value).map(|cached| unsafe { longer(cached) })
     }
 
+    /// Returns a reference to either the value provided, or an equivalent value that was already inserted
     #[expect(clippy::missing_panics_doc, clippy::readonly_write_lock)]
     pub fn intern(&self, value: T) -> &T {
         let hash = FxBuildHasher.hash_one(&value);
@@ -65,7 +71,7 @@ impl<T: Hash + Eq> Interner<T> {
     }
 
     #[expect(clippy::missing_panics_doc, clippy::readonly_write_lock)]
-    // Inserts the value into the interner checking if the value already exists
+    /// Inserts the value into the interner without checking if the value already exists
     pub fn intern_new(&self, value: T) -> &T {
         let hash = FxBuildHasher.hash_one(&value);
         let inner = self.inner.write().unwrap();
