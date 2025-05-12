@@ -36,6 +36,13 @@ impl<T> Interner<T> {
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
+
+    // Inserts the value into the interner's arena without checking if the value already exists.
+    // Future calls to intern will not find the same value, use `intern_new` if you want that behaviour.
+    pub fn insert_arena(&self, value: T) -> &mut T {
+        let inner = self.inner.write().unwrap();
+        unsafe { longer_mut(inner.insert_arena(value)) }
+    }
 }
 
 impl<T: Hash + Eq> Interner<T> {
@@ -94,6 +101,10 @@ unsafe fn longer<'b, T>(short: &T) -> &'b T {
     unsafe { std::mem::transmute(short) }
 }
 
+unsafe fn longer_mut<'b, T>(short: &mut T) -> &'b mut T {
+    unsafe { std::mem::transmute(short) }
+}
+
 unsafe impl<T: Send> Send for Interner<T> {}
 unsafe impl<T: Sync> Sync for Interner<T> {}
 
@@ -124,5 +135,12 @@ mod tests {
         let int = interner.intern(Type::Int);
         let array = interner.intern(Type::Array(int));
         println!("{array:?}");
+    }
+    #[test]
+    fn insert_arena() {
+        let interner = Interner::new();
+        let a1: *const _ = interner.insert_arena(1);
+        let a2: *const _ = interner.intern(1);
+        assert_ne!(a1.addr(), a2.addr());
     }
 }

@@ -49,6 +49,12 @@ impl<T> Interner<T> {
         self.len() == 0
     }
 
+    // Inserts the value into the interner's arena without checking if the value already exists.
+    // Future calls to intern will not find the same value, use `intern_new` if you want that behaviour.
+    pub fn insert_arena(&self, value: T) -> &mut T {
+        self.arena.get_or_init(Bump::new).alloc(value)
+    }
+
     fn set(&self) -> &HashTable<NonNull<u8>> {
         // Safety: mutable access is entirely contained without the Interners methods.
         unsafe { self.set.get().as_ref().unwrap() }
