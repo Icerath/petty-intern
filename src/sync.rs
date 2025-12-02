@@ -86,6 +86,15 @@ impl<T: Hash + Eq> Interner<T> {
         let inner = self.inner.write().unwrap();
         unsafe { longer(inner.insert(hash, value)) }
     }
+
+    /// Inserts a reference to the value into the interner.
+    /// All future calls the `Interner::intern` will return the provided reference.
+    ///
+    /// This function will *not* check if an equivalent value already exists within the table,
+    /// and may behave weirdly if one does.
+    pub fn intern_ref_unique(&self, value: &'static T) {
+        self.inner.write().unwrap().intern_ref_unique(value)
+    }
 }
 
 impl<T: fmt::Debug> fmt::Debug for Interner<T> {
@@ -155,5 +164,16 @@ mod tests {
 
         let one2: *const _ = interner.intern(1);
         assert_eq!(one.addr(), one2.addr())
+    }
+    #[test]
+    fn test_intern_ref_unique() {
+        let interner = Interner::new();
+
+        static ONE: i32 = 1;
+        let a1 = &ONE;
+
+        interner.intern_ref_unique(a1);
+        let a2: *const _ = interner.intern(1);
+        assert_eq!((a1 as *const i32).addr(), a2.addr());
     }
 }

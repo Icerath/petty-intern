@@ -59,12 +59,6 @@ impl<T> Interner<T> {
         // Safety: mutable access is entirely contained without the Interners methods.
         unsafe { self.set.get().as_ref().unwrap() }
     }
-
-    #[expect(clippy::mut_from_ref)]
-    fn set_mut(&self) -> &mut HashTable<NonNull<u8>> {
-        // Safety: mutable access is entirely contained without the Interners methods.
-        unsafe { self.set.get().as_mut().unwrap() }
-    }
 }
 
 impl<T: Hash + Eq> Interner<T> {
@@ -80,12 +74,20 @@ impl<T: Hash + Eq> Interner<T> {
 
     pub(crate) fn insert(&self, hash: u64, value: T) -> &T {
         let arena = self.arena.get_or_init(Bump::new);
+        unsafe { Self::insert_ref(&self.set, hash, arena.alloc(value)) }
+    }
 
-        let cached = NonNull::from(arena.alloc(value)).cast();
-        self.set_mut().insert_unique(hash, cached, |t| {
-            FxBuildHasher.hash_one(unsafe { t.cast::<T>().as_ref() })
-        });
-        unsafe { cached.cast().as_ref() }
+    pub(crate) unsafe fn insert_ref<'a>(
+        set: &'a UnsafeCell<HashTable<NonNull<u8>>>,
+        hash: u64,
+        value: &T,
+    ) -> &'a T {
+        let cached = NonNull::from(value).cast();
+        unsafe {
+            (set.get().as_mut().unwrap())
+                .insert_unique(hash, cached, |t| FxBuildHasher.hash_one(t.cast::<T>().as_ref()));
+            cached.cast().as_ref()
+        }
     }
 
     /// Will return a reference to an equivalent value if it already exists
@@ -114,6 +116,16 @@ impl<T: Hash + Eq> Interner<T> {
     pub fn intern_new(&self, value: T) -> &T {
         let hash = FxBuildHasher.hash_one(&value);
         self.insert(hash, value)
+    }
+
+    /// Inserts a reference to the value into the interner.
+    /// All future calls the `Interner::intern` will return the provided reference.
+    ///
+    /// This function will *not* check if an equivalent value already exists within the table,
+    /// and may behave weirdly if one does.
+    pub fn intern_ref_unique(&self, value: &'static T) {
+        let hash = FxBuildHasher.hash_one(value);
+        unsafe { Self::insert_ref(&self.set, hash, value) };
     }
 }
 
