@@ -17,7 +17,7 @@ pedantic = "warn"
 
 [dependencies]
 bumpalo = "3.17.0"
-hashbrown = "0.15.2"
+hashbrown = "0.16.1"
 rustc-hash = "2.1.1"
 
 [package.metadata.docs.rs]
