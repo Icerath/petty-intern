@@ -82,7 +82,9 @@ impl<T: Hash + Eq> Interner<T> {
         let arena = self.arena.get_or_init(Bump::new);
 
         let cached = NonNull::from(arena.alloc(value)).cast();
-        self.set_mut().insert_unique(hash, cached, |t| FxBuildHasher.hash_one(t));
+        self.set_mut().insert_unique(hash, cached, |t| {
+            FxBuildHasher.hash_one(unsafe { t.cast::<T>().as_ref() })
+        });
         unsafe { cached.cast().as_ref() }
     }
 

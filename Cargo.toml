@@ -10,6 +10,7 @@ repository = "https://github.com/Icerath/petty-intern"
 
 [features]
 sync = []
+default = ["sync"]
 
 [lints.clippy]
 pedantic = "warn"

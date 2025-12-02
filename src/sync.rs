@@ -143,4 +143,17 @@ mod tests {
         let a2: *const _ = interner.intern(1);
         assert_ne!(a1.addr(), a2.addr());
     }
+    #[test]
+    fn test_grow() {
+        let interner = Interner::new();
+        let one: *const _ = interner.intern(1);
+
+        // force a grow
+        for i in 2..1000 {
+            interner.intern(i);
+        }
+
+        let one2: *const _ = interner.intern(1);
+        assert_eq!(one.addr(), one2.addr())
+    }
 }
